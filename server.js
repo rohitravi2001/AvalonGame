@@ -1,9 +1,12 @@
 //const { SSL_OP_NO_TICKET } = require('constants');
 const { strictEqual } = require('assert')
 const express = require('express')
+const mongoose = require('mongoose')
 const app = express()
 const server = require('http').createServer(app)
 const io = require('socket.io')(server)
+const schema = require('./models/avalonModel')
+mongoose.connect('mongodb://localhost:27017/avalonApp')
 
 var characters = ["Morgana", "Merlin", "Percival", "Mordred", "Citizen"]
 var socketId = []
@@ -17,7 +20,15 @@ var peopleOnTheMission = []
 var passFailCount = 0
 var passOrFail = []
 var roundsStatus = []
-
+var roomNumbers = []
+var socketIDtoRoom = {};
+//var roomToSocketID = {};
+schema.create({name:'rithesh'}, function (err, results) {
+    if(err) {
+        throw error;
+    }
+    console.log(results)
+});
 function shuffle(array) {
     let currentIndex = array.length,  randomIndex;
   
@@ -63,10 +74,28 @@ io.on('connection', (socket) => {
     //CHANGE THIS NUMBER TO 5 OR WHATEVER
     if (io.engine.clientsCount == 2) {
         for (var i = 0; i < charAssignments.length; i++) {
-                io.to(charAssignments[i].id).emit('charAssigned', charAssignments[i].character)
+                //io.to(charAssignments[i].id).emit('charAssigned', charAssignments[i].character)
             }
         orderedSocketID = shuffle(socketId)
     }
+
+    socket.on('createRoom', (roomNumber) => {
+        socketIDtoRoom[socket.id] = roomNumber
+        //roomToSocketID[roomNumber] = [socket.id]
+        roomNumbers.push(roomNumber)
+        //console.log(roomToSocketID)
+        //io.to(socket.id).emit('roomCreated')
+
+    })
+
+    socket.on('joinRoom', (roomNumber) => {
+        socketIDtoRoom[socket.id] = roomNumber
+        //lst = roomToSocketID[roomNumber]
+        //lst.push(socket.id)
+        //console.log(lst)
+        //roomToSocketID[roomNumber] = lst
+        //console.log(roomToSocketID)
+    })
 
     socket.on("rejectOrAccept", (data) => {
         rejectOrAccept += data

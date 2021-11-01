@@ -1,4 +1,5 @@
 import socketio
+import random
 
 # standard Python
 sio = socketio.Client()
@@ -66,10 +67,24 @@ def charAssigned(data):
 def main():
     sio.connect('http://localhost:5000')
 
+
+
 if __name__ == '__main__':
     main()
     print(sio.get_sid("/"))
     myID = sio.get_sid("/")
+    print("Do you want to join or create a room?")
+    createOrJoin = input()
+    if createOrJoin == 'c':
+        roomNumber = random.randint(1000,9999)
+        print(str(roomNumber )+ " room created")
+        sio.emit('createRoom', roomNumber)
+    else:
+        print('What room would you like to join?')
+        roomNumber = int(input())
+        print(str(roomNumber) + " room joined")
+        sio.emit('joinRoom', roomNumber)
+    print("Do you want to ready up?")
     s = input()
     if (s == 'r'):
         sio.emit("readyUp")

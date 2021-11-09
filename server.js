@@ -9,6 +9,7 @@ const schema = require('./models/avalonModel')
 mongoose.connect('mongodb://localhost:27017/avalonApp')
 
 var characters = ["Morgana", "Merlin", "Percival", "Mordred", "Citizen"]
+var socketRoom
 var socketId = []
 var charAssignments = []
 var orderedSocketID = []
@@ -23,12 +24,7 @@ var roundsStatus = []
 var roomNumbers = []
 var socketIDtoRoom = {};
 //var roomToSocketID = {};
-schema.create({name:'rithesh'}, function (err, results) {
-    if(err) {
-        throw error;
-    }
-    console.log(results)
-});
+
 function shuffle(array) {
     let currentIndex = array.length,  randomIndex;
   
@@ -52,6 +48,10 @@ function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
   }
 
+function getRoomNumber(socketId) {
+    return socketIDtoRoom[socketId]
+}
+
 app.get('/home', (req, res) => {
     res.send('hi');
 });
@@ -61,28 +61,88 @@ server.listen(5000, () => {
 });
 
 io.on('connection', (socket) => { 
+    
+
+    // var characters = ["Morgana", "Merlin", "Percival", "Mordred", "Citizen"]
+    // var socketId = []
+    // var charAssignments = []
+    // var orderedSocketID = []
+    // var readyUpId = []
+    // var readyUpCount = 0
+    // var rejectOrAcceptCount = 0
+    // var rejectOrAccept = 0
+    // var peopleOnTheMission = []
+    // var passFailCount = 0
+    // var passOrFail = []
+    // var roundsStatus = []
+    // var roomNumbers = []
+        
     console.log("User connected: " + socket.id);
     console.log(io.engine.clientsCount)
-    randNum = getRndInteger(0, characters.length)
-    character = characters[randNum]
-    characters.splice(randNum, 1)
 
-    characterDict = {"id": socket.id, "character": character}
-    charAssignments.push(characterDict)
-    socketId.push(socket.id)
-
-    //CHANGE THIS NUMBER TO 5 OR WHATEVER
-    if (io.engine.clientsCount == 2) {
-        for (var i = 0; i < charAssignments.length; i++) {
-                //io.to(charAssignments[i].id).emit('charAssigned', charAssignments[i].character)
-            }
-        orderedSocketID = shuffle(socketId)
+    async function fetchDatabase() {
+        socketRoom = getRoomNumber(socket.id)
+        try {
+            let docs = await schema.find({roomID: socketRoom}) 
+            data = docs[0].data
+            socketId = data.socketId
+            charAssignments = data.charAssignments
+            orderedSocketID = data.orderedSocketID
+            readyUpId = data.readyUpId
+            readyUpCount = data.readyUpCount
+            rejectOrAcceptCount = data.rejectOrAcceptCount
+            rejectOrAccept = data.rejectOrAccept
+            peopleOnTheMission = data.peopleOnTheMission
+            passFailCount = data.passFailCount
+            passOrFail = data.passOrFail
+            roundsStatus = data.roundsStatus
+            roomNumbers = data.roomNumbers
+            characters = data.characters
+            console.log("HIII")
+            // console.log('REady up COunt')
+            // console.log(readyUpCount)
+        } catch(err) {
+            console.log(err)
+        }
+            //console.log(data)
+    }
+    
+    async function updateDatabase() {
+        newData = {
+            socketId: socketId,
+            charAssignments: charAssignments,
+            orderedSocketID: orderedSocketID,
+            readyUpId: readyUpId,
+            readyUpCount: readyUpCount,
+            rejectOrAcceptCount: rejectOrAcceptCount,
+            rejectOrAccept: rejectOrAccept, 
+            peopleOnTheMission: peopleOnTheMission,
+            passFailCount: passFailCount,
+            passOrFail: passOrFail,
+            roundsStatus: roundsStatus,
+            roomNumbers: roomNumbers,
+            characters: characters
+        }
+        try {
+            await schema.updateMany({roomID: socketRoom}, {data: newData})
+        } catch (err) {
+            console.log(err)
+        }
     }
 
-    socket.on('createRoom', (roomNumber) => {
+
+    socket.on('createRoom', () => {
+        var roomNumber = Math.floor(Math.random() * (9999 - 1000 + 1)) + 1000; 
         socketIDtoRoom[socket.id] = roomNumber
+        schema.create({roomID: roomNumber, data: {}}, function (err, results) {
+            if(err) {
+                throw error;
+            }
+           //console.log(results)
+        });
         //roomToSocketID[roomNumber] = [socket.id]
         roomNumbers.push(roomNumber)
+        socket.join(roomNumber)
         //console.log(roomToSocketID)
         //io.to(socket.id).emit('roomCreated')
 
@@ -90,42 +150,42 @@ io.on('connection', (socket) => {
 
     socket.on('joinRoom', (roomNumber) => {
         socketIDtoRoom[socket.id] = roomNumber
-        //lst = roomToSocketID[roomNumber]
-        //lst.push(socket.id)
-        //console.log(lst)
-        //roomToSocketID[roomNumber] = lst
-        //console.log(roomToSocketID)
+        socket.join(roomNumber)
     })
 
-    socket.on("rejectOrAccept", (data) => {
+    socket.on("rejectOrAccept", async (data) => {
+        await fetchDatabase()
         rejectOrAccept += data
         rejectOrAcceptCount += 1
         if (rejectOrAcceptCount == socketId.length) {
             if(rejectOrAccept/socketId.length > 0.5) {
                 //mission Accepted
-                io.emit("missionAccepted", {data: peopleOnTheMission, leader: orderedSocketID[0]})
+                io.in(socketRoom).emit("missionAccepted", {data: peopleOnTheMission, leader: orderedSocketID[0]})
             } else {
                 //mission Rejected
                 peopleOnTheMission = []
                 currentLeader = orderedSocketID.shift()
                 orderedSocketID.push(currentLeader)
-                io.emit('readyUp', {order: orderedSocketID})
+                io.in(socketRoom).emit('readyUp', {order: orderedSocketID})
             }
             rejectOrAccept = 0
             rejectOrAcceptCount = 0
         }
+        await updateDatabase()
     })
 
-    socket.on('letMissionProceed', () =>{
+    socket.on('letMissionProceed', async () =>{
+        await fetchDatabase()
         console.log(peopleOnTheMission.length)
         for (var i = 0; i < peopleOnTheMission.length; i++) {
             console.log('hi');
             io.to(peopleOnTheMission[i]).emit('passOrFail');
         }
-
+        await updateDatabase()
     })
 
-    socket.on('passOrFail', (passFail) =>{
+    socket.on('passOrFail', async (passFail) =>{
+        await fetchDatabase()
         passOrFail.push(passFail)
         passFailCount = passFailCount + 1
         //change this to whatever number is designated with a certain round
@@ -155,35 +215,69 @@ io.on('connection', (socket) => {
             passOrFail = []
             passFailCount = 0
             console.log(roundsStatus)
-            io.emit('missionOver', {data: passOrFail, missionStatus: missionStatus})
+            io.in(socketRoom).emit('missionOver', {data: passOrFail, missionStatus: missionStatus})
         }
+        await updateDatabase()
     })
 
-    socket.on("chosen", (data) => {
-        io.emit('chosen', data)
+    socket.on("chosen", async (data) => {
+        await fetchDatabase()
+        io.in(socketRoom).emit('chosen', data)
         peopleOnTheMission.push(data)
+        await updateDatabase()
     })
 
-    socket.on("readyUp", () => {
+    socket.on("readyUp", async () => {
+        await fetchDatabase()
+        console.log('Data Fetched')
         if (!readyUpId.includes(socket.id)) {
             readyUpId.push(socket.id)
             readyUpCount = readyUpCount + 1;
             console.log(readyUpId)
         }
+        if (readyUpCount == 2) {
+            console.log('2 people have readied up!')
+            readyUpId = []
+            readyUpCount = 0
+            io.in(socketRoom).emit("readyUp", {order: orderedSocketID})
+        }
+
+       await updateDatabase();
+
+
+    })
+
+    socket.on("readyUpSetUp", async () => {
+        await fetchDatabase()
+        console.log('Data Fetched')
+        randNum = getRndInteger(0, characters.length)
+        character = characters[randNum]
+        characters.splice(randNum, 1)
+        characterDict = {"id": socket.id, "character": character}
+        charAssignments.push(characterDict)
+        socketId.push(socket.id)
+        console.log('before')
+        console.log(readyUpCount)
+        if (!readyUpId.includes(socket.id)) {
+            readyUpId.push(socket.id)
+            readyUpCount = readyUpCount + 1;
+            console.log(readyUpId)
+        }
+        console.log('after')
+        console.log(readyUpCount)
       
         if (readyUpCount == 2) {
             console.log('2 people have readied up!')
             readyUpId = []
             readyUpCount = 0
-            io.emit("readyUp", {order: orderedSocketID})
+            orderedSocketID = shuffle(socketId)
+            io.in(socketRoom).emit("readyUp", {order: orderedSocketID})
         }
+
+       await updateDatabase();
+
+
     })
 
-
-
-    socket.on("message", (data) => {
-        console.log(data)
-        socket.broadcast.emit('message', { id: socket.id, message: data })
-    })
 
 });

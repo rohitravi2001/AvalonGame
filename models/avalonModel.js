@@ -4,33 +4,22 @@ const dataObj = new mongoose.Schema({
     socketId: Array,
     charAssignments: Array,
     orderedSocketID: Array,
+    readyUpCount: {type: Number, default: 0},
     readyUpId: Array,
-    readyUpCount: Array,
-    rejectOrAcceptCount: Number,
-    rejectOrAccept: Number, 
-    var peopleOnTheMission = []
-    var passFailCount = 0
-    var passOrFail = []
-    var roundsStatus = []
-    var roomNumbers = []
-    var socketIDtoRoom = {};
+    rejectOrAcceptCount: {type: Number, default: 0},
+    rejectOrAccept: {type: Number, default: 0}, 
+    peopleOnTheMission: Array,
+    passFailCount: {type: Number, default: 0},
+    passOrFail: Array,
+    roundsStatus: Array,
+    roomNumbers: Array,
+    characters: {type: Array, default: ["Morgana", "Merlin", "Percival", "Mordred", "Citizen"]}
+    //socketIDtoRoom: {type: Number, of: Number}
 })
 
 const AvalonSchema = new mongoose.Schema({
-    name: String
-    //var socketId = []
-    // var charAssignments = []
-    // var orderedSocketID = []
-    // var readyUpId = []
-    // var readyUpCount = 0
-    // var rejectOrAcceptCount = 0
-    // var rejectOrAccept = 0
-    // var peopleOnTheMission = []
-    // var passFailCount = 0
-    // var passOrFail = []
-    // var roundsStatus = []
-    // var roomNumbers = []
-    // var socketIDtoRoom = {};
+    roomID: Number,
+    data: dataObj
 })
 
 const model = mongoose.model('AvalonModel', AvalonSchema)

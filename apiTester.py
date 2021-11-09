@@ -76,9 +76,9 @@ if __name__ == '__main__':
     print("Do you want to join or create a room?")
     createOrJoin = input()
     if createOrJoin == 'c':
-        roomNumber = random.randint(1000,9999)
-        print(str(roomNumber )+ " room created")
-        sio.emit('createRoom', roomNumber)
+        #roomNumber = random.randint(1000,9999)
+        #print(str(roomNumber )+ " room created")
+        sio.emit('createRoom')
     else:
         print('What room would you like to join?')
         roomNumber = int(input())
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     print("Do you want to ready up?")
     s = input()
     if (s == 'r'):
-        sio.emit("readyUp")
+        sio.emit("readyUpSetUp")
    # print('What data would you like to send?')
     #data = input()
     #sio.emit('message', data)
